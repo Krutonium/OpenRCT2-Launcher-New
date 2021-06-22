@@ -27,12 +27,14 @@ namespace OpenRCT2_Launcher_new
         
         private Launcher()
         {
-            Title = "OpenRCT2 Launcher";
-            ClientSize = new Size(300, 300);
+            Title = "OpenRCT2 Branch Launcher";
+            ClientSize = new Size(300, 200);
+            Resizable = false;
             Content = GetUi();
             //Post GUI Setup Here
 
         }
+        [STAThread]
         static void Main(string[] args)
         {
             if (File.Exists(_settingsPath))
@@ -133,10 +135,28 @@ namespace OpenRCT2_Launcher_new
             
             if (OS == "Windows")
             {
-                ZipFile.ExtractToDirectory(tmpFileName, _settings.install_path);
-                foreach (var file in Directory.GetFiles(_settings.install_path))
+                ZipFile.ExtractToDirectory(tmpFileName, tmpDirectory);
+                foreach (var file in Directory.GetFiles(tmpDirectory))
                 {
                     if (file.Contains(".exe"))
+                    {
+                        File.Delete(file);
+                    }
+
+                    if (file.Contains("symbols"))
+                    {
+                        File.Delete(file);
+                    }
+
+                    if (file.Contains("portable"))
+                    {
+                        ZipFile.ExtractToDirectory(file, _settings.install_path);
+                    }
+                }
+
+                foreach (var file in Directory.GetFiles(_settings.install_path))
+                {
+                    if (file.EndsWith("exe"))
                     {
                         _settings.executable = file;
                     }
@@ -149,7 +169,7 @@ namespace OpenRCT2_Launcher_new
                 foreach(var file in Directory.GetFiles(_settings.install_path)){
                     if (file.Contains(".AppImage"))
                     {
-                        Process.Start("/usr/bin/chmod", "+x " + file);
+                        Process.Start("/usr/bin/chmod", "+x " + file).WaitForExit();
                         _settings.executable = file;
                     }
                 }
@@ -175,7 +195,7 @@ namespace OpenRCT2_Launcher_new
             ProcessStartInfo info = new ProcessStartInfo();
             info.FileName = _settings.executable;
             info.WorkingDirectory = _settings.install_path;
-            
+            info.UseShellExecute = true;
             Process.Start(info);
             //Environment.Exit(0);
         }
@@ -203,17 +223,10 @@ namespace OpenRCT2_Launcher_new
                 }
                 {
                     _branch_dropdown = new DropDown();
-                    foreach (var item in _branches)
-                    {
-                        //This was made global for access elsewhere, see top of file
-                        _branch_dropdown.Items.Add(item);
-                        if (item == _settings.branch_name)
-                        {
-                            _branch_dropdown.SelectedIndex = _branch_dropdown.Items.Count - 1;
-                        }
-                    }
+                    _branch_dropdown.Size = new Size(300, _branch_dropdown.Height);
+                    UpdateBranches();
                     layout.Items.Add(_branch_dropdown);
-                    _branch_dropdown.SelectedIndexChanged += Branch_dropdownOnSelectedIndexChanged; 
+                    _branch_dropdown.SelectedIndexChanged += Branch_dropdownOnSelectedIndexChanged;
                 }
                 {
                     StackLayout buttons = new StackLayout();
@@ -222,36 +235,63 @@ namespace OpenRCT2_Launcher_new
                         Button launch = new Button();
                         launch.Text = "Launch";
                         launch.Click += LaunchOnClick;
+                        launch.Size = new Size(150, launch.Size.Height);
                         buttons.Items.Add(launch);
-                        
                     }
                     {
                         Button options = new Button();
                         options.Text = "Options";
+                        options.Size = new Size(150, options.Size.Height);
                         buttons.Items.Add(options);
                     }
                     layout.Items.Add(buttons);
-
+                }
+                {
+                    CheckBox shouldShowAllBranches = new CheckBox();
+                    shouldShowAllBranches.Checked = _settings.allBranches;
+                    shouldShowAllBranches.Text = "Show all branches";
+                    shouldShowAllBranches.CheckedChanged += (sender, args) =>
+                    {
+                        _settings.allBranches = shouldShowAllBranches.Checked.Value;
+                        UpdateBranches();
+                        SaveSettings();
+                    };
+                    layout.Items.Add(shouldShowAllBranches);
                 }
                 panel.Content = layout;
-            }
-           
-            
-            
-            //Everything ends up on the panel eventually.
+                //Everything ends up on the panel eventually.
 
-            
-            
-            
-            return panel;
+                return panel;
+            }
         }
 
-        private void LaunchOnClick(object? sender, EventArgs e)
+        private void UpdateBranches()
+        {
+            List<string> allowedBranches = new List<string>();
+            allowedBranches.Add("develop");
+            allowedBranches.Add("master");
+            allowedBranches.Add("new-save-format");
+            _branch_dropdown.Items.Clear();
+            foreach (var item in _branches)
+            {
+                if (allowedBranches.Contains(item) | _settings.allBranches)
+                {
+                    //This was made global for access elsewhere, see top of file
+                    _branch_dropdown.Items.Add(item);
+                    if (item == _settings.branch_name)
+                    {
+                        _branch_dropdown.SelectedIndex = _branch_dropdown.Items.Count - 1;
+                    }
+                }
+            }
+        }
+
+        private void LaunchOnClick(object sender, EventArgs e)
         {
             DownloadAndUnpackBuild(_settings.branch_name);
         }
 
-        private void Branch_dropdownOnSelectedIndexChanged(object? sender, EventArgs e)
+        private void Branch_dropdownOnSelectedIndexChanged(object sender, EventArgs e)
         {
             //MessageBox.Show(_branch_dropdown.SelectedIndex.ToString());
             _settings.branch_name = _branch_dropdown.Items[_branch_dropdown.SelectedIndex].Text;
@@ -293,5 +333,7 @@ namespace OpenRCT2_Launcher_new
         public string branch_name = "develop";
         public string install_path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "/OpenRCT2/bin/";
         public string executable = "";
+        public bool allBranches = false;
+        public string lastCommit = "";
     }
 }
