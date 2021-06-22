@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Eto.Drawing;
 using Eto.Forms;
@@ -116,7 +117,7 @@ namespace OpenRCT2_Launcher_new
             }
             catch
             {
-                Console.WriteLine("That branch is too old and the builds have been deleted due to Age. Please pick a different branch.");
+                MessageBox.Show("That branch is too old and the builds have been deleted due to Age. Please pick a different branch.", MessageBoxType.Warning);
                 return;
             }
 
@@ -174,6 +175,7 @@ namespace OpenRCT2_Launcher_new
             ProcessStartInfo info = new ProcessStartInfo();
             info.FileName = _settings.executable;
             info.WorkingDirectory = _settings.install_path;
+            
             Process.Start(info);
             //Environment.Exit(0);
         }
@@ -190,10 +192,11 @@ namespace OpenRCT2_Launcher_new
                     layout.Items.Add(logolayout);
                     logolayout.Orientation = Orientation.Horizontal;
                     {
+                        var dir = Directory.GetCurrentDirectory() + "/Resources/";
                         ImageView logo = new ImageView();
-                        logo.Image = new Bitmap("./Resources/logo.png");
+                        logo.Image = new Bitmap(dir + "logo.png");
                         ImageView text = new ImageView();
-                        text.Image = new Bitmap("./Resources/logo_text.png");
+                        text.Image = new Bitmap(dir + "logo_text.png");
                         logolayout.Items.Add(logo);
                         logolayout.Items.Add(text);
                     }
