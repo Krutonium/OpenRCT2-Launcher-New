@@ -24,7 +24,7 @@ namespace OpenRCT2_Launcher_new
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "/OpenRCT2Launcher/settings.json";
         private static WebClient _wc = new WebClient();
         private static DropDown _branch_dropdown;
-        
+        private static JsonBranches[] output;
         private Launcher()
         {
             Title = "OpenRCT2 Branch Launcher";
@@ -53,7 +53,7 @@ namespace OpenRCT2_Launcher_new
                 Console.WriteLine(reply.Status);
                 if (reply.Status == IPStatus.Success)
                 {
-                    JsonBranches[] output = JsonConvert.DeserializeObject<JsonBranches[]>(
+                    output = JsonConvert.DeserializeObject<JsonBranches[]>(
                         _wc.DownloadString("https://api.github.com/repos/OpenRCT2/OpenRCT2/branches"));
                     foreach (var b in output)
                     {
@@ -77,6 +77,25 @@ namespace OpenRCT2_Launcher_new
             string buildFileName;
             string OS;
 
+            foreach (var b in output)
+            {
+                if (b.Name == branch)
+                {
+                    if (_settings.lastCommit != b.commit.sha)
+                    {
+                        _settings.lastCommit = b.commit.sha;
+                        //Falls out of the if, and downloads/updates
+                    }
+                    else
+                    {
+                        //Launches the existing downloaded copy.
+                        LaunchGame();
+                        return;
+                    }
+                }
+            }
+            
+            
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 buildFileName = "OpenRCT2-AppImage.zip";
@@ -122,7 +141,6 @@ namespace OpenRCT2_Launcher_new
                 MessageBox.Show("That branch is too old and the builds have been deleted due to Age. Please pick a different branch.", MessageBoxType.Warning);
                 return;
             }
-
             if (!Directory.Exists(Path.GetDirectoryName(_settings.install_path)))
             {
                 Directory.CreateDirectory(_settings.install_path);
@@ -190,17 +208,19 @@ namespace OpenRCT2_Launcher_new
                 Directory.Move(tmpDirectory + "/OpenRCT2.app", _settings.install_path);
                 _settings.executable = _settings.install_path + "/OpenRCT2.app";
             }
-
             SaveSettings();
+            LaunchGame();
+            //Environment.Exit(0);
+        }
+
+        private static void LaunchGame()
+        {
             ProcessStartInfo info = new ProcessStartInfo();
             info.FileName = _settings.executable;
             info.WorkingDirectory = _settings.install_path;
             info.UseShellExecute = true;
             Process.Start(info);
-            //Environment.Exit(0);
         }
-
-
 
         private Control GetUi()
         {
